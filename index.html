@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0d0d0d" />
+    <title>PAXG SMC Mini App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              gold: {
+                50: '#fff8df',
+                100: '#fdf0bf',
+                200: '#fbe291',
+                300: '#f6d672',
+                400: '#e7be47',
+                500: '#d6a32e',
+                600: '#b9831d',
+                700: '#8f6415',
+                800: '#5e4413',
+              },
+              charcoal: {
+                950: '#0b0d0f',
+                900: '#111316',
+                800: '#171b20',
+                700: '#1d242c',
+                600: '#2a3038',
+              },
+            },
+            boxShadow: {
+              glow: '0 0 0 1px rgba(234,189,90,0.35), 0 10px 35px rgba(0,0,0,0.35)',
+            },
+          },
+        },
+      };
+    </script>
+    <script src="https://unpkg.com/lightweight-charts@5.0.5/dist/lightweight-charts.standalone.production.js"></script>
+    <style>
+      :root {
+        --bg: #0b0d0f;
+        --panel: rgba(19, 22, 25, 0.9);
+        --soft: rgba(255,255,255,0.06);
+        --line: rgba(255,255,255,0.09);
+        --gold: #d6a32e;
+        --gold-soft: rgba(214,163,46,0.2);
+        --text: #edf3f2;
+        --muted: #9aa6a2;
+        --blue: #5aa8ff;
+        --red: #ff5b70;
+        --green: #29d17d;
+      }
+
+      html, body {
+        background:
+          radial-gradient(circle at top, rgba(214,163,46,0.12), transparent 28%),
+          linear-gradient(180deg, #0a0d0f 0%, #101518 100%);
+        color: var(--text);
+        min-height: 100%;
+      }
+
+      body {
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      .gold-panel {
+        background: linear-gradient(180deg, rgba(24,27,30,0.98), rgba(15,17,19,0.95));
+        border: 1px solid rgba(255,255,255,0.06);
+        box-shadow: 0 20px 35px rgba(0,0,0,0.22);
+      }
+
+      .luxury-glow {
+        box-shadow: 0 0 0 1px rgba(214,163,46,0.25), 0 12px 30px rgba(0,0,0,0.18);
+      }
+
+      .chart-shell {
+        height: 450px;
+        background: rgba(9, 11, 12, 0.9);
+      }
+
+      .tooltip {
+        position: absolute;
+        pointer-events: none;
+        background: rgba(10, 12, 14, 0.96);
+        border: 1px solid rgba(214,163,46,0.5);
+        border-radius: 10px;
+        padding: 10px 12px;
+        color: var(--text);
+        font-size: 12px;
+        line-height: 1.5;
+        min-width: 150px;
+        transform: translate(-50%, -110%);
+        z-index: 10;
+      }
+
+      .glass {
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+      }
+
+      .modal-backdrop {
+        background: rgba(0,0,0,0.64);
+      }
+
+      .selector-btn.active {
+        background: linear-gradient(180deg, rgba(214,163,46,0.25), rgba(233,191,88,0.14));
+        border-color: rgba(214,163,46,0.8);
+        color: #f3e4b9;
+      }
+
+      .signal-card {
+        min-height: 150px;
+      }
+
+      .telegram-btn {
+        background: linear-gradient(180deg, rgba(54, 144, 255, 0.15), rgba(31, 96, 191, 0.12));
+        border: 1px solid rgba(92, 151, 254, 0.35);
+      }
+
+      .theme-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        display: inline-block;
+      }
+    </style>
+  </head>
+  <body class="min-h-screen text-white antialiased">
+    <div class="mx-auto max-w-7xl px-4 py-4 md:px-6 lg:px-8">
+      <header class="gold-panel luxury-glow rounded-2xl p-4 md:p-5 mb-4">
+        <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <div class="flex items-center gap-2 text-[10px] md:text-xs uppercase tracking-[0.24em] text-gold-200/90">
+              <span class="theme-dot bg-gold-400"></span>
+              Telegram Mini App · PAXG/USDT
+            </div>
+            <h1 class="mt-2 text-2xl md:text-3xl font-semibold tracking-tight text-white">
+              PAXG Market Intelligence
+            </h1>
+          </div>
+
+          <div class="flex items-center gap-3 flex-wrap">
+            <div class="rounded-full border border-gold-500/30 bg-gold-500/10 px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] text-gold-100">
+              Live Price
+            </div>
+            <div id="live-price" class="text-lg md:text-xl font-bold tracking-tight text-gold-200">--</div>
+            <button id="settingsBtn" class="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[10px] font-medium uppercase tracking-[0.18em] text-slate-200 hover:border-gold-400/50 hover:text-gold-100 transition">
+              Settings
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main class="space-y-4">
+        <section class="gold-panel rounded-2xl p-3 md:p-4">
+          <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div class="flex flex-wrap items-center gap-2">
+              <button class="selector-btn active rounded-lg border px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-200 border-white/10 bg-white/5" data-interval="15m">15m</button>
+              <button class="selector-btn rounded-lg border px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-200 border-white/10 bg-white/5" data-interval="1h">1H</button>
+              <button class="selector-btn rounded-lg border px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-200 border-white/10 bg-white/5" data-interval="4h">4H</button>
+            </div>
+
+            <div class="flex items-center gap-2 md:justify-end">
+              <button id="analyzeBtn" class="rounded-xl bg-gold-500 px-4 py-2.5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-950 shadow-glow hover:brightness-110 transition">
+                Analyze PAXG (SMC + Price Action)
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section class="gold-panel rounded-2xl p-3 md:p-4">
+          <div class="relative">
+            <div id="chartWrap" class="chart-shell rounded-xl overflow-hidden relative">
+              <div id="chartTooltip" class="tooltip hidden"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="grid grid-cols-1 lg:grid-cols-[1.3fr_0.7fr] gap-4">
+          <div class="gold-panel rounded-2xl p-4 signal-card">
+            <div class="flex items-center justify-between mb-3">
+              <div>
+                <div class="text-[10px] uppercase tracking-[0.22em] text-gold-200/90">AI Signal</div>
+                <h2 class="mt-1 text-xl font-semibold text-white">SMC + Price Action</h2>
+              </div>
+              <span id="confidencePill" class="rounded-full border border-gold-500/30 bg-gold-500/10 px-2.5 py-1 text-[10px] uppercase tracking-[0.15em] text-gold-100">Awaiting signal</span>
+            </div>
+
+            <div id="signalCard" class="space-y-3 text-sm text-slate-200">
+              <div class="rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-slate-300">
+                No analysis yet. Begin with a market scan to generate a signal.
+              </div>
+            </div>
+
+            <div class="mt-4 flex flex-wrap gap-3">
+              <button id="telegramSendBtn" class="telegram-btn rounded-xl px-4 py-2.5 text-[10px] font-bold uppercase tracking-[0.18em] text-sky-100 hover:brightness-110 transition disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                Send Signal to Telegram
+              </button>
+              <button id="copyBtn" class="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-200 hover:border-gold-400/50 hover:text-gold-100 transition">
+                Copy Setup
+              </button>
+            </div>
+          </div>
+
+          <aside class="gold-panel rounded-2xl p-4">
+            <div class="text-[10px] uppercase tracking-[0.22em] text-gold-200/90">Market context</div>
+            <div class="mt-4 space-y-3 text-sm">
+              <div class="rounded-xl border border-white/10 bg-white/5 p-3">
+                <div class="text-[10px] uppercase tracking-[0.18em] text-slate-400">Trend bias</div>
+                <div id="trendBias" class="mt-2 text-lg font-semibold text-white">--</div>
+              </div>
+              <div class="rounded-xl border border-white/10 bg-white/5 p-3">
+                <div class="text-[10px] uppercase tracking-[0.18em] text-slate-400">Session status</div>
+                <div id="sessionStatus" class="mt-2 text-lg font-semibold text-white">Loading…</div>
+              </div>
+              <div class="rounded-xl border border-white/10 bg-white/5 p-3">
+                <div class="text-[10px] uppercase tracking-[0.18em] text-slate-400">Last updated</div>
+                <div id="lastUpdated" class="mt-2 text-base font-semibold text-gold-100">--</div>
+              </div>
+            </div>
+          </aside>
+        </section>
+      </main>
+    </div>
+
+    <div id="settingsModal" class="modal-backdrop fixed inset-0 hidden z-50 items-center justify-center p-4">
+      <div class="w-full max-w-lg rounded-2xl border border-white/10 bg-[#111518] p-5 shadow-2xl">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <div class="text-[10px] uppercase tracking-[0.24em] text-gold-200/90">Settings</div>
+            <h3 class="mt-2 text-2xl font-semibold text-white">Gemini API</h3>
+          </div>
+          <button id="closeSettings" class="rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-xs text-slate-200 hover:border-gold-400/60 hover:text-gold-100">Close</button>
+        </div>
+
+        <label class="block text-[10px] uppercase tracking-[0.18em] text-slate-400 mb-2">Google Gemini API Key</label>
+        <input id="apiKeyInput" type="password" class="w-full rounded-xl border border-white/10 bg-[#0d1114] px-3 py-3 text-sm outline-none placeholder:text-slate-500 focus:border-gold-400/70 focus:ring-1 focus:ring-gold-500/50" placeholder="Enter Gemini API key" />
+        <p class="mt-3 text-xs text-slate-400">
+          Stored in your browser localStorage only. Recommended for demos and personal use only.
+        </p>
+
+        <div class="mt-5 flex items-center justify-end gap-3">
+          <button id="clearApiKeyBtn" class="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-[10px] uppercase tracking-[0.18em] text-slate-200 hover:border-red-400/60 hover:text-red-200 transition">
+            Clear
+          </button>
+          <button id="saveApiKeyBtn" class="rounded-xl bg-gold-500 px-4 py-2 text-[10px] uppercase tracking-[0.18em] text-slate-950 font-bold hover:brightness-110 transition">
+            Save Key
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const BINANCE_SYMBOL = 'PAXGUSDT';
+      const state = {
+        timeframe: '15m',
+        candles: [],
+        chart: null,
+        series: null,
+        priceLines: [],
+        latestPrice: null,
+        signal: null,
+        ws: null,
+        initialLoad: false,
+      };
+
+      const ui = {
+        livePrice: document.getElementById('live-price'),
+        analyzeBtn: document.getElementById('analyzeBtn'),
+        settingsBtn: document.getElementById('settingsBtn'),
+        settingsModal: document.getElementById('settingsModal'),
+        apiKeyInput: document.getElementById('apiKeyInput'),
+        saveApiKeyBtn: document.getElementById('saveApiKeyBtn'),
+        clearApiKeyBtn: document.getElementById('clearApiKeyBtn'),
+        closeSettings: document.getElementById('closeSettings'),
+        trendBias: document.getElementById('trendBias'),
+        sessionStatus: document.getElementById('sessionStatus'),
+        lastUpdated: document.getElementById('lastUpdated'),
+        signalCard: document.getElementById('signalCard'),
+        confidencePill: document.getElementById('confidencePill'),
+        telegramSendBtn: document.getElementById('telegramSendBtn'),
+        copyBtn: document.getElementById('copyBtn'),
+        chartTooltip: document.getElementById('chartTooltip'),
+      };
+
+      function formatPrice(value) {
+        if (value === null || value === undefined || Number.isNaN(Number(value))) return '--';
+        return Number(value).toLocaleString(undefined, {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 4,
+        });
+      }
+
+      function formatPercent(value) {
+        if (value === null || value === undefined) return '--';
+        return `${Number(value).toFixed(2)}%`;
+      }
+
+      function formatTime(ts) {
+        return new Date(ts).toLocaleString([], {
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+      }
+
+      function showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = 'fixed right-4 bottom-4 z-[60] rounded-xl border px-4 py-3 text-xs font-medium uppercase tracking-[0.18em] shadow-2xl';
+        toast.style.borderColor = type === 'error' ? 'rgba(255,91,112,0.5)' : 'rgba(214,163,46,0.5)';
+        toast.style.background = type === 'error' ? 'rgba(80,18,24,0.86)' : 'rgba(18,20,22,0.9)';
+        toast.style.color = type === 'error' ? '#ffdce3' : '#f6e1a4';
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 2100);
+      }
+
+      function getLocalApiKey() {
+        return localStorage.getItem('gemini_api_key') || '';
+      }
+
+      function saveApiKey() {
+        const key = ui.apiKeyInput.value.trim();
+        if (!key) {
+          showToast('Please enter a Gemini API key', 'error');
+          return;
+        }
+        localStorage.setItem('gemini_api_key', key);
+        showToast('API key saved locally');
+        closeSettingsModal();
+      }
+
+      function clearApiKey() {
+        localStorage.removeItem('gemini_api_key');
+        ui.apiKeyInput.value = '';
+        showToast('API key removed');
+      }
+
+      function openSettingsModal() {
+        ui.apiKeyInput.value = getLocalApiKey();
+        ui.settingsModal.classList.remove('hidden');
+        ui.settingsModal.classList.add('flex');
+      }
+
+      function closeSettingsModal() {
+        ui.settingsModal.classList.add('hidden');
+        ui.settingsModal.classList.remove('flex');
+      }
+
+      ui.settingsBtn.addEventListener('click', openSettingsModal);
+      ui.closeSettings.addEventListener('click', closeSettingsModal);
+      ui.saveApiKeyBtn.addEventListener('click', saveApiKey);
+      ui.clearApiKeyBtn.addEventListener('click', clearApiKey);
+      ui.settingsModal.addEventListener('click', (event) => {
+        if (event.target === ui.settingsModal) closeSettingsModal();
+      });
+
+      function setIntervalButtons() {
+        document.querySelectorAll('.selector-btn').forEach(btn => {
+          btn.classList.toggle('active', btn.dataset.interval === state.timeframe);
+        });
+      }
+
+      document.querySelectorAll('.selector-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.timeframe = btn.dataset.interval;
+          setIntervalButtons();
+          connectWebSocket();
+          loadCandles();
+        });
+      });
+
+      function renderSignalCard() {
+        if (!state.signal) {
+          ui.signalCard.innerHTML = '<div class="rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-slate-300">No analysis yet. Begin with a market scan to generate a signal.</div>';
+          ui.confidencePill.textContent = 'Awaiting signal';
+          ui.telegramSendBtn.disabled = true;
+          return;
+        }
+
+        const { signal, entryPrice, stopLoss, takeProfit1, takeProfit2, confidence, reasoning } = state.signal;
+        const rr = (() => {
+          const risk = Math.abs(entryPrice - stopLoss);
+          const reward1 = Math.abs(takeProfit1 - entryPrice);
+          return risk > 0 ? (reward1 / risk).toFixed(2) : '0.00';
+        })();
+
+        ui.confidencePill.textContent = `${Number(confidence).toFixed(0)}% confidence`;
+        ui.telegramSendBtn.disabled = false;
+
+        ui.signalCard.innerHTML = `
+          <div class="grid grid-cols-2 gap-3">
+            <div class="rounded-xl border border-blue-400/30 bg-blue-500/10 p-3">
+              <div class="text-[10px] uppercase tracking-[0.18em] text-blue-200/80">Signal</div>
+              <div class="mt-2 text-2xl font-bold ${signal === 'BUY' ? 'text-emerald-300' : signal === 'SELL' ? 'text-red-300' : 'text-amber-300'}">${signal}</div>
+            </div>
+            <div class="rounded-xl border border-gold-400/30 bg-gold-500/10 p-3">
+              <div class="text-[10px] uppercase tracking-[0.18em] text-gold-200/80">Confidence</div>
+              <div class="mt-2 text-2xl font-bold text-gold-100">${Number(confidence).toFixed(0)}%</div>
+            </div>
+            <div class="rounded-xl border border-white/10 bg-white/5 p-3">
+              <div class="text-[10px] uppercase tracking-[0.18em] text-slate-400">Entry</div>
+              <div class="mt-2 text-lg font-semibold text-white">${formatPrice(entryPrice)}</div>
+            </div>
+            <div class="rounded-xl border border-white/10 bg-white/5 p-3">
+              <div class="text-[10px] uppercase tracking-[0.18em] text-slate-400">R:R</div>
+              <div class="mt-2 text-lg font-semibold text-white">${rr}:1</div>
+            </div>
+            <div class="rounded-xl border border-red-400/30 bg-red-500/10 p-3">
+              <div class="text-[10px] uppercase tracking-[0.18em] text-red-200/80">Stop Loss</div>
+              <div class="mt-2 text-lg font-semibold text-red-100">${formatPrice(stopLoss)}</div>
+            </div>
+            <div class="rounded-xl border border-emerald-400/30 bg-emerald-500/10 p-3">
+              <div class="text-[10px] uppercase tracking-[0.18em] text-emerald-200/80">Take Profit</div>
+              <div class="mt-2 text-lg font-semibold text-emerald-100">${formatPrice(takeProfit1)}</div>
+            </div>
+          </div>
+
+          <div class="mt-3 rounded-xl border border-white/10 bg-white/5 p-3">
+            <div class="text-[10px] uppercase tracking-[0.18em] text-slate-400">SMC reasoning</div>
+            <div class="mt-2 text-sm leading-6 text-slate-200">${reasoning || 'No explanation provided.'}</div>
+          </div>
+
+          <div class="mt-3 rounded-xl border border-white/10 bg-white/5 p-3">
+            <div class="text-[10px] uppercase tracking-[0.18em] text-slate-400">Targets</div>
+            <div class="mt-2 grid grid-cols-2 gap-3 text-sm">
+              <div><span class="text-slate-400">TP1:</span> <span class="font-semibold text-emerald-200">${formatPrice(takeProfit1)}</span></div>
+              <div><span class="text-slate-400">TP2:</span> <span class="font-semibold text-emerald-200">${formatPrice(takeProfit2)}</span></div>
+            </div>
+          </div>
+        `;
+      }
+
+      function clearPriceLines() {
+        if (!state.series) return;
+        state.priceLines.forEach(line => {
+          try {
+            state.series.removePriceLine(line);
+          } catch (error) {
+            console.warn('Unable to remove price line', error);
+          }
+        });
+        state.priceLines = [];
+      }
+
+      function drawSignalLines() {
+        if (!state.signal || !state.series) return;
+        const { entryPrice, stopLoss, takeProfit1, takeProfit2 } = state.signal;
+        const lineConfigs = [
+          { price: Number(entryPrice), color: '#5aa8ff', title: 'Entry', text: 'Entry' },
+          { price: Number(stopLoss), color: '#ff5b70', title: 'SL', text: 'SL' },
+          { price: Number(takeProfit1), color: '#29d17d', title: 'TP1', text: 'TP1' },
+          { price: Number(takeProfit2), color: '#7af0a8', title: 'TP2', text: 'TP2' },
+        ];
+
+        clearPriceLines();
+
+        lineConfigs.forEach(({ price, color, title, text }) => {
+          if (!Number.isFinite(Number(price))) return;
+          const line = state.series.createPriceLine({
+            price: Number(price),
+            color,
+            lineWidth: 1,
+            lineStyle: 1,
+            axisLabelVisible: true,
+            title: text,
+          });
+          state.priceLines.push(line);
+        });
+      }
+
+      function createChart() {
+        const chartEl = document.getElementById('chartWrap');
+        if (!chartEl) return;
+
+        const chart = LightweightCharts.createChart(chartEl, {
+          layout: {
+            background: { type: 'solid', color: '#0b1014' },
+            textColor: '#e5e7eb',
+            fontFamily: 'Inter, sans-serif',
+          },
+          grid: {
+            vertLines: { color: 'rgba(255,255,255,0.06)' },
+            horzLines: { color: 'rgba(255,255,255,0.06)' },
+          },
+          crosshair: {
+            mode: LightweightCharts.CrosshairMode.Normal,
+            vertLine: { color: '#d6a32e', width: 1 },
+            horzLine: { color: '#d6a32e', width: 1 },
+          },
+          rightPriceScale: { borderColor: 'rgba(255,255,255,0.12)' },
+          timeScale: { borderColor: 'rgba(255,255,255,0.12)', timeVisible: true, secondsVisible: false },
+          handleScale: { axisPressedMouseMove: true, mouseWheel: true },
+          handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true },
+          localization: { locale: 'en-US' },
+        });
+
+        const candlestickSeries = chart.addSeries(LightweightCharts.CandlestickSeries, {
+          upColor: '#29d17d',
+          downColor: '#ff5b70',
+          borderVisible: false,
+          wickUpColor: '#29d17d',
+          wickDownColor: '#ff5b70',
+          priceLineColor: '#d6a32e',
+        });
+
+        chart.timeScale().fitContent();
+        state.chart = chart;
+        state.series = candlestickSeries;
+
+        chart.subscribeCrosshairMove((param) => {
+          if (!param.point || !param.time || !param.seriesData || !param.seriesData.get(candlestickSeries)) {
+            ui.chartTooltip.classList.add('hidden');
+            return;
+          }
+          const candle = param.seriesData.get(candlestickSeries);
+          ui.chartTooltip.innerHTML = `
+            <div><strong>${formatTime(candle.time * 1000)}</strong></div>
+            <div>O: ${formatPrice(candle.open)}</div>
+            <div>H: ${formatPrice(candle.high)}</div>
+            <div>L: ${formatPrice(candle.low)}</div>
+            <div>C: ${formatPrice(candle.close)}</div>
+          `;
+          const rect = chartEl.getBoundingClientRect();
+          ui.chartTooltip.style.left = `${param.point.x}px`;
+          ui.chartTooltip.style.top = `${param.point.y}px`;
+          ui.chartTooltip.classList.remove('hidden');
+        });
+      }
+
+      function setChartData(data) {
+        if (!state.series) return;
+        state.series.setData(data);
+        state.chart.timeScale().fitContent();
+      }
+
+      function mapCandlesToChart(candles) {
+        return candles.map(c => ({
+          time: Math.floor(c[0] / 1000),
+          open: Number(c[1]),
+          high: Number(c[2]),
+          low: Number(c[3]),
+          close: Number(c[4]),
+        }));
+      }
+
+      async function fetchCandles(symbol = BINANCE_SYMBOL, interval = state.timeframe, limit = 200) {
+        const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
+        const response = await fetch(url, { cache: 'no-store' });
+        if (!response.ok) throw new Error(`Unable to fetch candles for ${symbol}`);
+        const payload = await response.json();
+        return payload;
+      }
+
+      async function loadCandles() {
+        ui.sessionStatus.textContent = 'Fetching data…';
+        try {
+          const raw = await fetchCandles(BINANCE_SYMBOL, state.timeframe, 200);
+          const mapped = mapCandlesToChart(raw);
+          state.candles = mapped;
+          setChartData(mapped);
+          const last = mapped[mapped.length - 1];
+          state.latestPrice = Number(last.close);
+          ui.livePrice.textContent = `$${formatPrice(state.latestPrice)}`;
+          ui.lastUpdated.textContent = formatTime(last.time * 1000);
+          ui.sessionStatus.textContent = 'Live feed ready';
+          ui.trendBias.textContent = getTrendBias(mapped);
+          if (state.signal) drawSignalLines();
+        } catch (error) {
+          console.error(error);
+          ui.sessionStatus.textContent = 'Data sync failed';
+          showToast('Market data could not be loaded.', 'error');
+        }
+      }
+
+      function getTrendBias(data) {
+        if (data.length < 10) return 'Neutral';
+        const recent = data.slice(-10);
+        const opens = recent.map(c => c.open);
+        const closes = recent.map(c => c.close);
+        const avgOpen = opens.reduce((sum, v) => sum + v, 0) / opens.length;
+        const avgClose = closes.reduce((sum, v) => sum + v, 0) / closes.length;
+        if (avgClose > avgOpen) return 'Bullish';
+        if (avgClose < avgOpen) return 'Bearish';
+        return 'Neutral';
+      }
+
+      function getTimeframeWsInterval() {
+        switch (state.timeframe) {
+          case '15m': return '15m';
+          case '1h': return '1h';
+          case '4h': return '4h';
+          default: return '15m';
+        }
+      }
+
+      function connectWebSocket() {
+        if (state.ws) {
+          state.ws.close();
+        }
+
+        const wsUrl = `wss://stream.binance.com:9443/ws/${BINANCE_SYMBOL.toLowerCase()}@kline_${getTimeframeWsInterval()}`;
+        const ws = new WebSocket(wsUrl);
+        state.ws = ws;
+
+        ws.addEventListener('open', () => {
+          ui.sessionStatus.textContent = 'WebSocket connected';
+        });
+
+        ws.addEventListener('message', event => {
+          try {
+            const payload = JSON.parse(event.data);
+            const k = payload.k;
+            if (!k) return;
+            const candle = {
+              time: Math.floor(k.t / 1000),
+              open: Number(k.o),
+              high: Number(k.h),
+              low: Number(k.l),
+              close: Number(k.c),
+            };
+
+            if (!state.candles.length) {
+              state.candles.push(candle);
+              setChartData(state.candles);
+              return;
+            }
+
+            const last = state.candles[state.candles.length - 1];
+            if (last.time === candle.time) {
+              state.candles[state.candles.length - 1] = candle;
+            } else {
+              state.candles.push(candle);
+            }
+
+            state.candles = state.candles.slice(-200);
+            setChartData(state.candles);
+            state.latestPrice = Number(candle.close);
+            ui.livePrice.textContent = `$${formatPrice(state.latestPrice)}`;
+            ui.lastUpdated.textContent = formatTime(candle.time * 1000);
+            ui.trendBias.textContent = getTrendBias(state.candles);
+            if (state.signal) drawSignalLines();
+          } catch (error) {
+            console.error('WebSocket parse error:', error);
+          }
+        });
+
+        ws.addEventListener('close', () => {
+          ui.sessionStatus.textContent = 'WebSocket disconnected';
+        });
+
+        ws.addEventListener('error', () => {
+          ui.sessionStatus.textContent = 'WebSocket error';
+        });
+      }
+
+      function buildGeminiPrompt(candles) {
+        const summary = candles.map(c => ({
+          t: formatTime(c.time * 1000),
+          o: c.open,
+          h: c.high,
+          l: c.low,
+          c: c.close,
+        }));
+
+        return `
+You are a professional market analyst specializing in Smart Money Concepts (SMC), order blocks, fair value gaps, liquidity sweeps, BOS/CHoCH, and price action. Analyze the latest PAXGUSDT OHLC data below.
+
+Rules:
+- Use only the data provided.
+- Think like a disciplined SMC trader.
+- Provide a trading decision using the following strict JSON object schema:
+{
+  "signal": "BUY" | "SELL" | "WAIT",
+  "entryPrice": number,
+  "stopLoss": number,
+  "takeProfit1": number,
+  "takeProfit2": number,
+  "confidence": number,
+  "reasoning": "string with concise but detailed SMC reasoning"
+}
+- If the market is unclear, return "WAIT" with conservative numbers.
+- Prefer realistic values near actual price action.
+- Do not include markdown fences.
+- Keep reasoning in plain English and concise but specific.
+- Use the latest price as the reference and respect price structure.
+
+Latest PAXGUSDT candles (50 most recent, with timestamp in local time):
+${JSON.stringify(summary, null, 2)}
+`;
+      }
+
+      async function analyzeSignal() {
+        const apiKey = getLocalApiKey();
+        if (!apiKey) {
+          openSettingsModal();
+          showToast('Add your Gemini API key first.', 'error');
+          return;
+        }
+
+        if (!state.candles || state.candles.length < 20) {
+          showToast('Not enough candles available.', 'error');
+          return;
+        }
+
+        ui.analyzeBtn.disabled = true;
+        ui.analyzeBtn.textContent = 'Analyzing…';
+
+        try {
+          const trimmed = state.candles.slice(-50);
+          const prompt = buildGeminiPrompt(trimmed);
+          const payload = {
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            generationConfig: { responseMimeType: 'application/json' },
+          };
+
+          const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+
+          if (!response.ok) {
+            const errBody = await response.text();
+            throw new Error(errBody || 'Gemini request failed');
+          }
+
+          const data = await response.json();
+          const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+          const clean = text.replace(/```json|```/g, '').trim();
+          const parsed = JSON.parse(clean);
+
+          const signalObj = {
+            signal: String(parsed.signal || 'WAIT').toUpperCase(),
+            entryPrice: Number(parsed.entryPrice),
+            stopLoss: Number(parsed.stopLoss),
+            takeProfit1: Number(parsed.takeProfit1),
+            takeProfit2: Number(parsed.takeProfit2),
+            confidence: Number(parsed.confidence || 0),
+            reasoning: String(parsed.reasoning || 'SMC analysis completed.'),
+          };
+
+          state.signal = signalObj;
+          renderSignalCard();
+          drawSignalLines();
+          showToast(`Signal updated: ${signalObj.signal}`);
+        } catch (error) {
+          console.error(error);
+          showToast('Gemini analysis failed. Check the API key and try again.', 'error');
+        } finally {
+          ui.analyzeBtn.disabled = false;
+          ui.analyzeBtn.textContent = 'Analyze PAXG (SMC + Price Action)';
+        }
+      }
+
+      function buildTelegramMessage() {
+        if (!state.signal) return '';
+        const { signal, entryPrice, stopLoss, takeProfit1, takeProfit2, confidence, reasoning } = state.signal;
+        return [
+          'PAXGUSDT SMC Signal',
+          `Signal: ${signal}`,
+          `Entry: ${formatPrice(entryPrice)}`,
+          `Stop Loss: ${formatPrice(stopLoss)}`,
+          `TP1: ${formatPrice(takeProfit1)}`,
+          `TP2: ${formatPrice(takeProfit2)}`,
+          `Confidence: ${Number(confidence).toFixed(0)}%`,
+          `SMC: ${reasoning}`,
+          `Timeframe: ${state.timeframe}`,
+        ].join('\n');
+      }
+
+      function sendSignalToTelegram() {
+        const message = buildTelegramMessage();
+        if (!message) {
+          showToast('Generate a signal first.', 'error');
+          return;
+        }
+
+        if (typeof window.Telegram !== 'undefined' && window.Telegram.WebApp) {
+          try {
+            window.Telegram.WebApp.sendData(JSON.stringify({ type: 'paxg_signal', message }));
+            showToast('Signal sent to Telegram');
+          } catch (e) {
+            navigator.clipboard?.writeText(message).catch(() => {});
+            showToast('Telegram send failed. Message copied to clipboard.', 'error');
+          }
+          return;
+        }
+
+        navigator.clipboard?.writeText(message)
+          .then(() => showToast('Signal copied to clipboard'))
+          .catch(() => showToast('Open the app inside Telegram to share the signal', 'error'));
+      }
+
+      async function copySignalSetup() {
+        const text = buildTelegramMessage();
+        if (!text) {
+          showToast('Generate a signal first.', 'error');
+          return;
+        }
+        try {
+          await navigator.clipboard.writeText(text);
+          showToast('Setup copied');
+        } catch (error) {
+          showToast('Clipboard unavailable in this browser', 'error');
+        }
+      }
+
+      function initTelegram() {
+        const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+        if (!tg) {
+          console.info('Telegram WebApp SDK not detected in this environment.');
+          return;
+        }
+        tg.ready();
+        tg.expand();
+        try {
+          tg.setHeaderColor('#111316');
+          tg.setBackgroundColor('#0b0d0f');
+        } catch (error) {
+          console.warn('Telegram theme update not supported');
+        }
+      }
+
+      ui.analyzeBtn.addEventListener('click', analyzeSignal);
+      ui.telegramSendBtn.addEventListener('click', sendSignalToTelegram);
+      ui.copyBtn.addEventListener('click', copySignalSetup);
+
+      createChart();
+      initTelegram();
+      setIntervalButtons();
+      loadCandles();
+      connectWebSocket();
+      document.getElementById('settingsBtn').click();
+      setTimeout(() => closeSettingsModal(), 500);
+    </script>
+  </body>
+</html>
